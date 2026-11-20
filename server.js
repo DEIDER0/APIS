@@ -1,8 +1,17 @@
 // server.js
 const express = require("express");
 const { db } = require("./db");
+const authRouter = require("./auth");
+const { verificarToken, soloAdmin } = require("./middlewares");
 const app = express();
 app.use(express.json());
+
+if (!process.env.JWT_SECRET) {
+  console.error("Falta JWT_SECRET en el archivo .env");
+  process.exit(1);
+}
+
+app.use(authRouter); // POST /registro y POST /login
 
 // true si es un número válido >= 0
 const esNoNegativo = (n) => typeof n === "number" && !Number.isNaN(n) && n >= 0;
@@ -48,7 +57,7 @@ app.get("/productos/:id", async (req, res) => {
 });
 
 // 3. POST /productos
-app.post("/productos", async (req, res) => {
+app.post("/productos", verificarToken, async (req, res) => {
   try {
     const { nombre, precio, stock = 0 } = req.body;
     if (!nombre || precio === undefined) {
@@ -68,7 +77,7 @@ app.post("/productos", async (req, res) => {
 });
 
 // 4. PUT /productos/:id (exige todos los campos)
-app.put("/productos/:id", async (req, res) => {
+app.put("/productos/:id", verificarToken, async (req, res) => {
   try {
     const { nombre, precio, stock } = req.body;
     if (!nombre || precio === undefined || stock === undefined) {
@@ -91,7 +100,7 @@ app.put("/productos/:id", async (req, res) => {
 });
 
 // 5. PATCH /productos/:id (solo los campos enviados)
-app.patch("/productos/:id", async (req, res) => {
+app.patch("/productos/:id", verificarToken, async (req, res) => {
   try {
     const { nombre, precio, stock } = req.body;
     if (precio !== undefined && !esNoNegativo(precio)) {
@@ -129,7 +138,7 @@ app.patch("/productos/:id", async (req, res) => {
 });
 
 // 6. DELETE /productos/:id
-app.delete("/productos/:id", async (req, res) => {
+app.delete("/productos/:id", verificarToken, soloAdmin, async (req, res) => {
   try {
     const [resultado] = await db.query("DELETE FROM productos WHERE id = ?", [
       req.params.id,
